@@ -16,6 +16,7 @@
 
 #include "timed_counter.hh"
 #include "float_or_double_reader.hh"
+#include "Higgs2diphoton.hh"
 
 #define TEST(var) \
   std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
@@ -105,6 +106,8 @@ int main(int argc, char* argv[]) {
     cout << "  " << name << endl;
   cout << endl;
 
+  Higgs2diphoton h2yy; // Higgs to diphoton decayer
+
   HepMC::GenEvent event;
   event.use_units(HepMC::Units::GEV, HepMC::Units::MM);
 
@@ -119,17 +122,50 @@ int main(int argc, char* argv[]) {
 
     GenVertex* v = new GenVertex;
     event.add_vertex(v);
-    GenParticle *p1 = new GenParticle(6500, 2212, 4);
-    GenParticle *p2 = new GenParticle(6500, 2212, 4);
+    GenParticle *p1 = new GenParticle({0,0, 6500,6500}, 2212, 4);
+    GenParticle *p2 = new GenParticle({0,0,-6500,6500}, 2212, 4);
+    p1->set_generated_mass(0.938);
+    p2->set_generated_mass(0.938);
     v->add_particle_in(p1);
     v->add_particle_in(p2);
     event.set_beam_particles(p1,p2);
+    event.set_event_number(*_id);
 
     for (int i=0, n=*_nparticle; i<n; ++i) {
-      GenParticle *p = new GenParticle({_px[i],_py[i],_pz[i],_E[i]},_kf[i],1);
-      p->set_generated_mass(0);
-      v->add_particle_out(p);
+      const auto kf = _kf[i];
+      if (kf == 25) {
+        const TLorentzVector H(_px[i],_py[i],_pz[i],_E[i]);
+
+        GenParticle *pH = new GenParticle({H.Px(),H.Py(),H.Pz(),H.E()},25,2);
+
+        GenVertex* vH = new GenVertex;
+        event.add_vertex(vH);
+        v->add_particle_out(pH);
+        vH->add_particle_in(pH);
+
+        const auto photons = h2yy(H);
+        auto* ph1 = new GenParticle({
+          photons.first.Px(),
+          photons.first.Py(),
+          photons.first.Pz(),
+          photons.first.E ()},22,1);
+        ph1->set_generated_mass(0);
+        auto* ph2 = new GenParticle({
+          photons.second.Px(),
+          photons.second.Py(),
+          photons.second.Pz(),
+          photons.second.E ()},22,1);
+        ph2->set_generated_mass(0);
+        vH->add_particle_out(ph1);
+        vH->add_particle_out(ph2);
+      } else {
+        GenParticle *p = new GenParticle({_px[i],_py[i],_pz[i],_E[i]},kf,1);
+        p->set_generated_mass(0);
+        v->add_particle_out(p);
+      }
     }
+
+    // cout << event << endl;
 
     rivet.analyze(event);
     event.clear();

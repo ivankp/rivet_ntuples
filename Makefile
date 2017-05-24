@@ -38,8 +38,10 @@ ROOT_LIBS += $(shell $(rpath_script))
 RIVET_CFLAGS := $(shell rivet-config --cppflags)
 RIVET_LIBS   := -lHepMC $(shell rivet-config --libs | sed 's/-L\/usr\/[^ ]\+ //g')
 
-C_rivet_ntuples := $(ROOT_CFLAGS) $(RIVET_CFLAGS)
-L_rivet_ntuples := $(ROOT_LIBS) -lTreePlayer $(RIVET_LIBS)
+C_hj_rivet := $(ROOT_CFLAGS) $(RIVET_CFLAGS)
+L_hj_rivet := $(ROOT_LIBS) -lTreePlayer $(RIVET_LIBS)
+
+C_Higgs2diphoton := $(ROOT_CFLAGS)
 
 SRC := src
 BIN := bin
@@ -61,6 +63,8 @@ rel: $(EXES)
 ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NODEPS))))
 -include $(DEPS)
 endif
+
+$(BIN)/hj_rivet: $(BLD)/Higgs2diphoton.o
 
 $(DEPS): $(BLD)/%.d: $(SRC)/%.cc | $(BLD)
 	$(CXX) $(DF) -MM -MT '$(@:.d=.o)' $< -MF $@
